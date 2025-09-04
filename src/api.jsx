@@ -1,7 +1,5 @@
 // src/api.jsx
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000/api';
-
-export async function listDatasets() { const res = await fetch(`${API_BASE}/datasets/`); return await res.json(); }
+const API_BASE = 'http://127.0.0.1:8000/api';
 
 async function safeJson(res) {
   if (!res.ok) {
