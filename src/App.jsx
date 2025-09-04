@@ -4,7 +4,9 @@ import ChartCard from './components/ChartCard';
 import MetricCard from './components/MetricCard';
 import DatasetList from './components/DatasetList';
 import UploadDataset from './components/UploadDataset';
-import { listDatasets, getMetrics, getDistribution, uploadDataset } from './api';
+import './App.css';
+import { listDatasets, getMetrics, getDistribution, uploadDataset } from './api.jsx';
+
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -18,10 +20,14 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const ds = await listDatasets();
-      if (!mounted) return;
-      setDatasets(ds);
-      if (!selected && ds.length > 0) setSelected(ds[0].id);
+      try {
+        const ds = await listDatasets();
+        if (!mounted) return;
+        setDatasets(ds);
+        if (!selected && ds.length > 0) setSelected(ds[0].id);
+      } catch (err) {
+        console.error(err);
+      }
     })();
     return () => (mounted = false);
   }, []);
@@ -34,42 +40,43 @@ export default function App() {
     }
     let mounted = true;
     (async () => {
-      setLoadingMetrics(true);
-      const m = await getMetrics(selected);
-      if (!mounted) return;
-      setMetrics(m);
-
-      // encontrar primera columna numérica
-      const firstNum = Object.entries(m.types || {}).find(([k, t]) =>
-        t && (t.includes('int') || t.includes('float') || t.includes('number'))
-      );
-      const col = firstNum ? firstNum[0] : Object.keys(m.types || {})[0];
-      if (col) {
-        const dist = await getDistribution(selected, col, 12);
+      try {
+        setLoadingMetrics(true);
+        const m = await getMetrics(selected);
         if (!mounted) return;
-        const labels = dist.bins.map((b) => b.bin);
-        const data = dist.bins.map((b) => b.count);
-        setHistData({ labels, datasets: [{ label: `${col}`, data }] });
-      } else {
-        setHistData(null);
+        setMetrics(m);
+
+        const firstNum = Object.entries(m.types || {}).find(([k, t]) =>
+          t && (t.includes('int') || t.includes('float') || t.includes('number'))
+        );
+        const col = firstNum ? firstNum[0] : Object.keys(m.types || {})[0];
+        if (col) {
+          const dist = await getDistribution(selected, col, 12);
+          if (!mounted) return;
+          const labels = dist.bins.map((b) => b.bin);
+          const data = dist.bins.map((b) => b.count);
+          setHistData({ labels, datasets: [{ label: `${col}`, data }] });
+        } else {
+          setHistData(null);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingMetrics(false);
       }
-      setLoadingMetrics(false);
     })();
     return () => (mounted = false);
   }, [selected]);
 
-  const handleUpload = async (fileOrFileObj) => {
-    // subir a backend y refrescar lista
-    // uploadDataset espera un File; si onUploaded desde UploadDataset manda el file
+  const handleUpload = async (file) => {
     try {
-      const created = await uploadDataset(fileOrFileObj);
+      const created = await uploadDataset(file);
       const ds = await listDatasets();
       setDatasets(ds);
       if (created?.id) setSelected(created.id);
-      return created;
     } catch (err) {
       console.error(err);
-      alert('Error al subir dataset');
+      alert(err.message);
     }
   };
 
@@ -77,9 +84,7 @@ export default function App() {
     <div className="app-root">
       <header className="topbar">
         <h1 className="title">Data Quality Dashboard</h1>
-        <div className="top-actions">
-          <UploadDataset onUploaded={handleUpload} />
-        </div>
+        <UploadDataset onUploaded={handleUpload} />
       </header>
 
       <main className="layout">

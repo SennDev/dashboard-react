@@ -1,40 +1,30 @@
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 
 export default function UploadDataset({ onUploaded }) {
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const fileInput = useRef();
 
-  const submit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) return alert('Selecciona un archivo CSV');
-    setLoading(true);
+    if (fileInput.current.files.length === 0) {
+      alert('Selecciona un archivo CSV');
+      return;
+    }
+
+    const file = fileInput.current.files[0];
     try {
-      const form = new FormData();
-      form.append('file', file);
-      // Lógica de subida se maneja en App (subir vía API o pasar al parent)
-      if (onUploaded) {
-        const res = await onUploaded(file);
-        // onUploaded puede devolver el dataset creado o id
-      }
-      setFile(null);
+      const created = await onUploaded(file);
+      alert(`Dataset ${created.name} subido correctamente`);
+      fileInput.current.value = '';
     } catch (err) {
       console.error(err);
-      alert('Error subiendo archivo');
-    } finally {
-      setLoading(false);
+      alert(`Error subiendo dataset: ${err.message}`);
     }
   };
 
   return (
-    <form className="upload-form" onSubmit={submit}>
-      <input
-        type="file"
-        accept=".csv"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-      />
-      <button type="submit" className="btn" disabled={loading}>
-        {loading ? 'Subiendo...' : 'Subir CSV'}
-      </button>
+    <form onSubmit={handleSubmit} className="upload-form">
+      <input type="file" ref={fileInput} accept=".csv" />
+      <button type="submit">Subir CSV</button>
     </form>
   );
 }
